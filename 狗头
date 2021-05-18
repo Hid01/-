@@ -1,0 +1,40 @@
+
+Blender
+Blender
+Blender
+if (@available(macOS 11.0, iOS 14.0, *))
+{
+    _supportsStageBoundary = [_device supportsCounterSampling:MTLCounterSamplingPointAtStageBoundary];
+    _supportsDrawBoundary  = [_device supportsCounterSampling:MTLCounterSamplingPointAtDrawBoundary];
+}[_device.counterSets enumerateObjectsUsingBlock:^(id<MTLCounterSet> nonnull obj,
+                                                  NSUInteger                idx,
+                                                  BOOL * nonnull            stop) {
+       if ([[obj name] isEqualToString:MTLCommonCounterSetTimestamp])
+            _counterSetTimestamp = obj;
+}];// When setting up the render pass descriptor
+
+if (_supportsStageBoundary || _supportsDrawBoundary)
+{
+    MTLCounterSampleBufferDescriptor *desc = [MTLCounterSampleBufferDescriptor new];
+
+    desc.sampleCount = 6; // Number of samples to store 
+    desc.storageMode = MTLStorageModeShared;
+    desc.label       = @"Live Profiling HUD Metal counter sample buffer";
+    desc.counterSet  = _counterSetTimestamp;
+
+    id<MTLCounterSampleBuffer> sampleBuffer =
+                               [_device newCounterSampleBufferWithDescriptor:desc error:nil];
+
+    MTLRenderPassSampleBufferAttachmentDescriptor *sampleBufferDesc =
+                                  renderPassDescriptor.sampleBufferAttachments[0];
+
+    if (_supportsStageBoundary)
+    {
+        sampleBufferDesc.startOfVertexSampleIndex   = 0;
+        sampleBufferDesc.endOfVertexSampleIndex     = 1;
+        sampleBufferDesc.startOfFragmentSampleIndex = 2;
+        sampleBufferDesc.endOfFragmentSampleIndex   = 3;
+    }
+
+    sampleBufferDesc.sampleBuffer = sampleBuffer;
+}
